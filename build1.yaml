@@ -10,11 +10,15 @@ phases:
       - npm --version
   build:
     commands:
+      - echo "⏳ Building the project..."
       - npm install
       - ls -a
       - ls -a ./src
       - npm run build-file-hello
+      - echo "✅ Build completed."
       - ls -a ./dist
+      - echo "✅ Show file hello.js"
       - cat ./dist/hello.cjs
       - node --version
+      - echo "✅ Running hello.js"
       - node ./dist/hello.cjs
