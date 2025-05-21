@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "⏳ Installing dependencies..."
+      - node --version
+      - npm --version
+  build:
+    commands:
+      - npm install
+      - ls -a
+      - ls -a ./src
+      - npm run build-file-hello
+      - ls -a ./dist
+      - cat ./dist/hello.cjs
+      - node --version
+      - node ./dist/hello.cjs

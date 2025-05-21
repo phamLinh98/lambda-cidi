@@ -14,3 +14,5 @@ export async function handler(event) {
     body: JSON.stringify({ message: "Hello from Lambda!" }),
   };
 }
+
+handler()
