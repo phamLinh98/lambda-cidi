@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Simple S3 → Lambda prints TXT (no SAM)
+
+Parameters:
+  CodeS3Bucket:
+    Type: String
+    Description: S3 bucket chứa gói ZIP Lambda
+  CodeS3Key:
+    Type: String
+    Description: S3 key của gói ZIP Lambda
+
+Resources:
+  InputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: ".txt"
+            Function: !GetAtt PrintFileFunction.Arn
+
+  PrintFileFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: print-file-content
+      Runtime: nodejs20.x
+      Handler: index.handler
+      MemorySize: 128
+      Timeout: 30
+      Role: !GetAtt LambdaExecRole.Arn
+      Code:
+        S3Bucket: !Ref CodeS3Bucket
+        S3Key:    !Ref CodeS3Key
+
+  LambdaExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3Read
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${InputBucket.Arn}/*'
+
+  PermissionForS3Invoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PrintFileFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt InputBucket.Arn
+
+Outputs:
+  BucketName:
+    Description: Upload .txt here
+    Value: !Ref InputBucket
