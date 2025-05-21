@@ -1,0 +1,23 @@
+{
+  "name": "lambda-cidi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build-file-hello": "esbuild src/hello.js --bundle --platform=node --target=node22 --minify --format=cjs --outfile=dist/hello.cjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phamLinh98/lambda-cidi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/phamLinh98/lambda-cidi/issues"
+  },
+  "homepage": "https://github.com/phamLinh98/lambda-cidi#readme",
+  "devDependencies": {
+    "esbuild": "^0.25.4"
+  }
+}
