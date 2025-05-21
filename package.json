@@ -17,7 +17,7 @@
     "url": "https://github.com/phamLinh98/lambda-cidi/issues"
   },
   "homepage": "https://github.com/phamLinh98/lambda-cidi#readme",
-  "devDependencies": {
+  "dependencies": {
     "esbuild": "^0.25.4"
   }
 }
