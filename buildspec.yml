@@ -3,7 +3,8 @@ version: 0.2
 env:
   variables:
     STACK_NAME: simple-s3-lambda
-    CODE_KEY: "function-${CODEBUILD_RESOLVED_SOURCE_VERSION}.zip"
+    ARTIFACT_BUCKET: linhclass-codebuild-artifact # S3 bucket to store the zip file
+    CODE_KEY: "function-code.zip" # The name of the zip file to be created
 
 phases:
   install:
