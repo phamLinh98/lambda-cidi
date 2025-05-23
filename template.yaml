@@ -1,18 +1,46 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Simple S3 → Lambda prints TXT (no SAM)
+Description: |
+  Simple S3 → Lambda prints TXT (pure CloudFormation, no SAM)
 
+# -------- Parameters --------------------------------------------------------
 Parameters:
   CodeS3Bucket:
     Type: String
-    Description: S3 bucket chứa gói ZIP Lambda
+    Description: S3 bucket chứa file ZIP của Lambda
   CodeS3Key:
     Type: String
-    Description: S3 key của gói ZIP Lambda
+    Description: S3 key (đường dẫn) tới file ZIP Lambda
 
+# -------- Resources ---------------------------------------------------------
 Resources:
+
+  ## 1. S3 bucket chứa file upload
   InputBucket:
     Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:        # Khi có object mới → gọi Lambda
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*   # lên object nào cũng bắn
+            Function: !GetAtt PrintFileFunction.Arn
+    DependsOn: PermissionForS3Invoke    # Phải cấp quyền invoke trước
 
+  ## 2. IAM role cho Lambda
+  LambdaExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      # Managed policies có sẵn – không reference bucket ⇒ tránh vòng lặp
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess   # đọc S3 tuỳ ý
+
+  ## 3. Lambda function
   PrintFileFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -26,29 +54,41 @@ Resources:
         S3Bucket: !Ref CodeS3Bucket
         S3Key:    !Ref CodeS3Key
 
-  LambdaExecRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: S3Read
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: s3:GetObject
-                Resource: !Sub '${InputBucket.Arn}/*'
-
+  ## 4. Quyền để S3 invoke Lambda
   PermissionForS3Invoke:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref PrintFileFunction
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
-      SourceArn: !Sub 'arn:aws:s3:::${InputBucket}'
+      # Dùng SourceAccount để cắt reference tới bucket ⇒ no circular dep
+      SourceAccount: !Ref AWS::AccountId
+
+  ## 5. Bucket policy – chỉ cho Lambda role đọc objects trong bucket
+  InputBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref InputBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLambdaGetObject
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt LambdaExecRole.Arn
+            Action: s3:GetObject
+            Resource: !Sub '${InputBucket.Arn}/*'
+
+# -------- Outputs -----------------------------------------------------------
+Outputs:
+  BucketName:
+    Description: Tên S3 bucket để upload file .txt
+    Value: !Ref InputBucket
+
+  LambdaName:
+    Description: Tên Lambda function
+    Value: !Ref PrintFileFunction
+
+  LambdaArn:
+    Description: ARN Lambda (tiện dùng cho log/monitoring)
+    Value: !GetAtt PrintFileFunction.Arn
