@@ -22,3 +22,6 @@ phases:
       - node --version
       - echo "✅ Running hello.js"
       - node ./dist/hello.cjs
+      - echo "console.log('Hello world from hello.js')" > ./src/tuan.js
+      - echo "console.log('Hello world from zerogame.js')" > ./src/zerogame.js
+      - ls -a ./src
