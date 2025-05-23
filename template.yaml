@@ -1,8 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: |
-  Simple S3 → Lambda prints TXT (pure CloudFormation, no SAM)
+Description: Simple S3 → Lambda prints TXT (pure CloudFormation, zero circular deps)
 
-# -------- Parameters --------------------------------------------------------
+# ---------------------------------------------------------------------------#
+# Parameters                                                                 #
+# ---------------------------------------------------------------------------#
 Parameters:
   CodeS3Bucket:
     Type: String
@@ -11,20 +12,12 @@ Parameters:
     Type: String
     Description: S3 key (đường dẫn) tới file ZIP Lambda
 
-# -------- Resources ---------------------------------------------------------
+# ---------------------------------------------------------------------------#
+# Resources                                                                  #
+# ---------------------------------------------------------------------------#
 Resources:
 
-  ## 1. S3 bucket chứa file upload
-  InputBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      NotificationConfiguration:        # Khi có object mới → gọi Lambda
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:*   # lên object nào cũng bắn
-            Function: !GetAtt PrintFileFunction.Arn
-    DependsOn: PermissionForS3Invoke    # Phải cấp quyền invoke trước
-
-  ## 2. IAM role cho Lambda
+  # 1. IAM role cho Lambda (KHÔNG reference bucket)
   LambdaExecRole:
     Type: AWS::IAM::Role
     Properties:
@@ -35,12 +28,11 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-      # Managed policies có sẵn – không reference bucket ⇒ tránh vòng lặp
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess   # đọc S3 tuỳ ý
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess   # đủ để đọc object
 
-  ## 3. Lambda function
+  # 2. Lambda function in Node.js 20
   PrintFileFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -54,32 +46,28 @@ Resources:
         S3Bucket: !Ref CodeS3Bucket
         S3Key:    !Ref CodeS3Key
 
-  ## 4. Quyền để S3 invoke Lambda
+  # 3. Quyền để S3 invoke Lambda (KHÔNG reference bucket)
   PermissionForS3Invoke:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref PrintFileFunction
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
-      # Dùng SourceAccount để cắt reference tới bucket ⇒ no circular dep
-      SourceAccount: !Ref AWS::AccountId
+      SourceAccount: !Ref AWS::AccountId   # tránh circular dep
 
-  ## 5. Bucket policy – chỉ cho Lambda role đọc objects trong bucket
-  InputBucketPolicy:
-    Type: AWS::S3::BucketPolicy
+  # 4. S3 bucket, cấu hình notification sau khi có permission
+  InputBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: PermissionForS3Invoke        # đảm bảo quyền đã sẵn sàng
     Properties:
-      Bucket: !Ref InputBucket
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: AllowLambdaGetObject
-            Effect: Allow
-            Principal:
-              AWS: !GetAtt LambdaExecRole.Arn
-            Action: s3:GetObject
-            Resource: !Sub '${InputBucket.Arn}/*'
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt PrintFileFunction.Arn
 
-# -------- Outputs -----------------------------------------------------------
+# ---------------------------------------------------------------------------#
+# Outputs                                                                    #
+# ---------------------------------------------------------------------------#
 Outputs:
   BucketName:
     Description: Tên S3 bucket để upload file .txt
@@ -90,5 +78,5 @@ Outputs:
     Value: !Ref PrintFileFunction
 
   LambdaArn:
-    Description: ARN Lambda (tiện dùng cho log/monitoring)
+    Description: ARN Lambda – tiện để monitor/log
     Value: !GetAtt PrintFileFunction.Arn
