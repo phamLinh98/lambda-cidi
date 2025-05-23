@@ -12,16 +12,6 @@ Parameters:
 Resources:
   InputBucket:
     Type: AWS::S3::Bucket
-    Properties:
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: ".txt"
-            Function: !GetAtt PrintFileFunction.Arn
 
   PrintFileFunction:
     Type: AWS::Lambda::Function
@@ -61,9 +51,4 @@ Resources:
       FunctionName: !Ref PrintFileFunction
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
-      SourceArn: !GetAtt InputBucket.Arn
-
-Outputs:
-  BucketName:
-    Description: Upload .txt here
-    Value: !Ref InputBucket
+      SourceArn: !Sub 'arn:aws:s3:::${InputBucket}'
