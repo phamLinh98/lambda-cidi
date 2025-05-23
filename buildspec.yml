@@ -3,15 +3,15 @@ version: 0.2
 env:
   variables:
     STACK_NAME: simple-s3-lambda
-    CODE_KEY: "function-${CODEBUILD_RESOLVED_SOURCE_VERSION}.zip"
+    ARTIFACT_BUCKET: linhclass-codebuild-artifact
+    CODE_KEY: function-code.zip
 
 phases:
   install:
     runtime-versions:
       nodejs: 20
     commands:
-      - npm --version
-      - pip install --quiet awscli
+      - aws --version
   pre_build:
     commands:
       - echo "⏳ Zipping Lambda code..."
@@ -20,11 +20,13 @@ phases:
   build:
     commands:
       - echo "⏳ Deploying CloudFormation stack..."
-      - aws cloudformation deploy \
-        --template-file template.yaml \
-        --stack-name $STACK_NAME \
-        --capabilities CAPABILITY_NAMED_IAM \
-        --parameter-overrides CodeS3Bucket=$ARTIFACT_BUCKET CodeS3Key=$CODE_KEY
+      - ls -l
+      - |
+          aws cloudformation deploy \
+            --template-file template.yaml \
+            --stack-name $STACK_NAME \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides CodeS3Bucket=$ARTIFACT_BUCKET CodeS3Key=$CODE_KEY
   post_build:
     commands:
       - echo "✅ Deployment finished."
